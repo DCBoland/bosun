@@ -35,6 +35,12 @@ var TSDB = map[string]parse.Func{
 		Tags:   tagQuery,
 		F:      Over,
 	},
+	"overQuery": {
+		Args:   []models.FuncType{models.TypeString, models.TypeString, models.TypeString, models.TypeString, models.TypeScalar},
+		Return: models.TypeSeriesSet,
+		Tags:   tagQuery,
+		F:      OverQuery,
+	},
 	"change": {
 		Args:   []models.FuncType{models.TypeString, models.TypeString, models.TypeString},
 		Return: models.TypeNumberSet,
@@ -328,6 +334,10 @@ func ShiftBand(e *State, query, duration, period string, num float64) (r *Result
 }
 
 func Over(e *State, query, duration, period string, num float64) (r *Results, err error) {
+	return OverQuery(e, query, "", duration, period, num)
+}
+
+func OverQuery(e *State, query, eduration, duration, period string, num float64) (r *Results, err error) {
 	r = new(Results)
 	r.IgnoreOtherUnjoined = true
 	r.IgnoreUnjoined = true
@@ -358,6 +368,14 @@ func Over(e *State, query, duration, period string, num float64) (r *Results, er
 			Queries: []*opentsdb.Query{q},
 		}
 		now := e.now
+		if eduration != "" {
+			var ed opentsdb.Duration
+			ed, err = opentsdb.ParseDuration(eduration)
+			if err != nil {
+				return
+			}
+			now = now.Add(time.Duration(-ed))
+		}
 		req.End = now.Unix()
 		req.Start = now.Add(time.Duration(-d)).Unix()
 		for i := 0; i < int(num); i++ {
